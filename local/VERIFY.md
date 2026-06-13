@@ -42,6 +42,38 @@ mock HTTP callback server: 0.0.0.0:18088
 6. `mod_message_filter` rewrite path works.
 7. `mod_message_filter` reject path returns an XMPP error stanza instead of crashing c2s.
 8. `mod_offline_push` calls the HTTP push gateway for an offline message.
+9. Optional: Keycloak JWT access token can authenticate over XMPP SASL PLAIN.
+
+## Verify Keycloak login
+
+Current Cadoo Keycloak realm:
+
+```text
+base URL: https://kc.pyramidtip.com
+realm: cadoo
+client_id: cadoo-backend
+XMPP username claim: name
+```
+
+Fetch a token without printing it:
+
+```bash
+python3 scripts/keycloak_token.py --username '<phone>' --password-stdin
+```
+
+Run the full verifier with a token. Keep the token in the shell only; do not write it to git:
+
+```bash
+TOKEN=$(printf '%s\n' '<password>' \
+  | python3 scripts/keycloak_token.py \
+      --username '<phone>' \
+      --password-stdin \
+      --print-token)
+
+KEYCLOAK_ACCESS_TOKEN="$TOKEN" \
+KEYCLOAK_TEST_USERNAME='<phone>' \
+python3 scripts/verify_local_stack.py
+```
 
 Successful output ends with:
 
@@ -51,6 +83,7 @@ Successful output ends with:
   "filter_requests": 4,
   "push_requests": 1,
   "verified": [
+    "keycloak_jwt_login",
     "online_chat",
     "message_filter_pass",
     "message_filter_rewrite",

@@ -9,6 +9,31 @@ export MESSAGE_FILTER_API_URL="${MESSAGE_FILTER_API_URL:-https://backend.pyramid
 export MESSAGE_FILTER_API_KEY="${MESSAGE_FILTER_API_KEY:-}"
 export OFFLINE_PUSH_URL="${OFFLINE_PUSH_URL:-https://backend.pyramidtip.com/notify}"
 export OFFLINE_PUSH_API_KEY="${OFFLINE_PUSH_API_KEY:-}"
+export AUTH_MODE="${AUTH_MODE:-sql}"
+export AUTH_PASSWORD_FORMAT="${AUTH_PASSWORD_FORMAT:-scram}"
+export KEYCLOAK_BASE_URL="${KEYCLOAK_BASE_URL:-https://kc.pyramidtip.com}"
+export KEYCLOAK_REALM="${KEYCLOAK_REALM:-cadoo}"
+export KEYCLOAK_JWKS_URL="${KEYCLOAK_JWKS_URL:-${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs}"
+export KEYCLOAK_ISSUER="${KEYCLOAK_ISSUER:-${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}"
+export KEYCLOAK_JID_FIELD="${KEYCLOAK_JID_FIELD:-preferred_username}"
+export KEYCLOAK_JWKS_CACHE_TTL="${KEYCLOAK_JWKS_CACHE_TTL:-3600}"
+
+case "$AUTH_MODE" in
+  sql)
+    AUTH_METHODS="  - sql"
+    ;;
+  keycloak|keycloak_sql|keycloak-custom|keycloak_custom)
+    AUTH_METHODS="  - keycloak_custom
+  - sql"
+    # JWT token is supplied as the SASL PLAIN password. SCRAM cannot be used.
+    AUTH_PASSWORD_FORMAT="plain"
+    ;;
+  *)
+    echo "ERROR: unsupported AUTH_MODE=$AUTH_MODE (expected sql or keycloak)" >&2
+    exit 64
+    ;;
+esac
+export AUTH_METHODS AUTH_PASSWORD_FORMAT
 
 required="POSTGRES_HOST POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD"
 for name in $required; do
@@ -42,9 +67,18 @@ render() {
       POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
       REDIS_HOST REDIS_PORT REDIS_PASSWORD \
       MESSAGE_FILTER_API_URL MESSAGE_FILTER_API_KEY \
-      OFFLINE_PUSH_URL OFFLINE_PUSH_API_KEY; do
+      OFFLINE_PUSH_URL OFFLINE_PUSH_API_KEY \
+      AUTH_PASSWORD_FORMAT \
+      KEYCLOAK_BASE_URL KEYCLOAK_REALM KEYCLOAK_JWKS_URL \
+      KEYCLOAK_ISSUER KEYCLOAK_JID_FIELD KEYCLOAK_JWKS_CACHE_TTL; do
       replace_var "$dst" "$name"
     done
+    # AUTH_METHODS is intentionally multiline YAML. sed replacement cannot
+    # safely carry embedded newlines, so replace the whole placeholder line.
+    if grep -q '^${AUTH_METHODS}$' "$dst"; then
+      awk -v auth="$AUTH_METHODS" '{ if ($0 == "${AUTH_METHODS}") print auth; else print }' "$dst" > "$dst.tmp"
+      mv "$dst.tmp" "$dst"
+    fi
   fi
 }
 

@@ -333,6 +333,8 @@ def main() -> int:
     parser.add_argument("--xmpp-host", default="127.0.0.1")
     parser.add_argument("--xmpp-port", type=int, default=16222)
     parser.add_argument("--mock-port", type=int, default=18088)
+    parser.add_argument("--keycloak-token", default=os.getenv("KEYCLOAK_ACCESS_TOKEN"), help="Access token used to verify Keycloak JWT login")
+    parser.add_argument("--keycloak-user", default=os.getenv("KEYCLOAK_TEST_USERNAME"), help="Expected XMPP username for --keycloak-token")
     parser.add_argument("--skip-restart", action="store_true", help="Do not restart ejabberd after patching module config")
     args = parser.parse_args()
 
@@ -352,6 +354,20 @@ def main() -> int:
             f"bob_verify_{suffix}": "bob-pass-123",
         }
         register_users(args.container, args.domain, users)
+
+        keycloak_verified = False
+        if args.keycloak_token:
+            if not args.keycloak_user:
+                raise RuntimeError("--keycloak-token requires --keycloak-user or KEYCLOAK_TEST_USERNAME")
+            print("CASE 0: Keycloak JWT XMPP login")
+            kc = XmppClient(args.xmpp_host, args.xmpp_port, args.domain, args.keycloak_user, args.keycloak_token, "keycloak")
+            try:
+                kc.connect()
+                keycloak_verified = True
+                print("OK Keycloak JWT login")
+            finally:
+                kc.close()
+
         alice_user, bob_user = list(users.keys())
         alice_jid = f"{alice_user}@{args.domain}"
         bob_jid = f"{bob_user}@{args.domain}"
@@ -408,12 +424,15 @@ def main() -> int:
             with contextlib.suppress(Exception):
                 bob.close()
 
+        verified = ["online_chat", "message_filter_pass", "message_filter_rewrite", "message_filter_reject", "offline_push"]
+        if keycloak_verified:
+            verified.insert(0, "keycloak_jwt_login")
         print("\nVERIFICATION PASSED")
         print(json.dumps({
             "domain": args.domain,
             "filter_requests": len(state.verify_requests),
             "push_requests": len(state.notify_requests),
-            "verified": ["online_chat", "message_filter_pass", "message_filter_rewrite", "message_filter_reject", "offline_push"],
+            "verified": verified,
         }, ensure_ascii=False, indent=2))
         return 0
     finally:

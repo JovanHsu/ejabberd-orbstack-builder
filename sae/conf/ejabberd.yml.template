@@ -172,10 +172,10 @@ cluster_nodes: []  # 留空，使用自动发现
 ## 认证配置 - 多认证方法（SQL + Keycloak JWT）
 ## ============================================================================
 auth_method:
-  - sql
+${AUTH_METHODS}
 
 ## 密码格式
-auth_password_format: scram
+auth_password_format: ${AUTH_PASSWORD_FORMAT}
 
 ## 允许的 SASL 机制
 disable_sasl_mechanisms:

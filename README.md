@@ -51,6 +51,11 @@ gh workflow run build-sae.yml -f image_tag=latest
 Runtime env expected in SAE:
 
 - `XMPP_DOMAIN=xmpp.pyramidtip.com`
+- `AUTH_MODE=keycloak` for Keycloak JWT + SQL fallback, or `AUTH_MODE=sql` for SQL only
+- `AUTH_PASSWORD_FORMAT=plain` when `AUTH_MODE=keycloak`; `scram` is fine for SQL-only local mode
+- `KEYCLOAK_BASE_URL=https://kc.pyramidtip.com`
+- `KEYCLOAK_REALM=cadoo`
+- `KEYCLOAK_JID_FIELD=name` for the current Cadoo token shape
 - `POSTGRES_HOST`
 - `POSTGRES_PORT`
 - `POSTGRES_DB`

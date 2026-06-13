@@ -37,7 +37,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_local_password}
 
   ejabberd:
-    image: registry.pyramidtip.com/library/ejabberd:local-verify-json
+    image: ${EJABBERD_IMAGE:-registry.pyramidtip.com/library/ejabberd:local-keycloak-auth-test}
     container_name: ejabberd-local-stack
     restart: unless-stopped
     depends_on:
@@ -54,6 +54,14 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       XMPP_DOMAIN: xmpp.narsk.dpdns.org
+      AUTH_MODE: ${AUTH_MODE:-sql}
+      AUTH_PASSWORD_FORMAT: ${AUTH_PASSWORD_FORMAT:-scram}
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-https://kc.pyramidtip.com}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pyramidtip}
+      KEYCLOAK_JWKS_URL: ${KEYCLOAK_JWKS_URL:-}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-}
+      KEYCLOAK_JID_FIELD: ${KEYCLOAK_JID_FIELD:-preferred_username}
+      KEYCLOAK_JWKS_CACHE_TTL: ${KEYCLOAK_JWKS_CACHE_TTL:-3600}
     ports:
       # Use 16xxx host ports to avoid collisions with the standalone local containers.
       - "16222:5222"   # XMPP client
