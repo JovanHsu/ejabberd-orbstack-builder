@@ -22,7 +22,9 @@ concurrency:
 
 env:
   REGISTRY: registry.pyramidtip.com
-  IMAGE_NAME: ejabberd
+  # Harbor requires <project>/<repository>. Pushing registry.pyramidtip.com/ejabberd
+  # fails with: invalid repository name: ejabberd
+  IMAGE_NAME: library/ejabberd
 
 jobs:
   build-sae:

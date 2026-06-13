@@ -27,7 +27,7 @@ docker run -d --name ejabberd \
 
 - Context: `sae/`
 - Workflow: `.github/workflows/build-sae.yml`
-- Output: `registry.pyramidtip.com/ejabberd:latest`
+- Output: `registry.pyramidtip.com/library/ejabberd:latest`
 - Platform: `linux/amd64`
 - Domain: `xmpp.pyramidtip.com`
 
