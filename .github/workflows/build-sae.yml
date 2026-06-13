@@ -54,18 +54,23 @@ jobs:
           username: ${{ secrets.PYRAMIDTIP_REGISTRY_USERNAME }}
           password: ${{ secrets.PYRAMIDTIP_REGISTRY_PASSWORD }}
 
-      - name: Build and push SAE image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./sae
-          file: ./sae/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.image.outputs.primary }}
-            ${{ steps.image.outputs.sha }}
-          cache-from: type=gha,scope=sae-ejabberd
-          cache-to: type=gha,scope=sae-ejabberd,mode=max
+      # Harbor behind registry.pyramidtip.com rejects BuildKit direct-push blob HEAD
+      # requests in some cases. Use classic docker build + docker push on the
+      # native amd64 runner instead. SAE is amd64, so no emulation is needed.
+      - name: Build SAE image
+        shell: bash
+        run: |
+          docker build \
+            -f ./sae/Dockerfile \
+            -t "${{ steps.image.outputs.primary }}" \
+            -t "${{ steps.image.outputs.sha }}" \
+            ./sae
+
+      - name: Push SAE image
+        shell: bash
+        run: |
+          docker push "${{ steps.image.outputs.primary }}"
+          docker push "${{ steps.image.outputs.sha }}"
 
       - name: Print image
         shell: bash
