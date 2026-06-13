@@ -444,27 +444,9 @@ modules:
     file_mode: "0644"
     dir_mode: "0755"
 
-  ## 消息过滤模块（自定义）
-  mod_message_filter:
-    api_url: "${MESSAGE_FILTER_API_URL}"
-    api_timeout: 5000
-    api_key: "${MESSAGE_FILTER_API_KEY}"
-    filter_groupchat: false
-    filter_types:
-      - chat
-      - normal
-
-  ## 离线消息推送模块（自定义）
-  mod_offline_push:
-    push_url: "${OFFLINE_PUSH_URL}"
-    push_timeout: 5000
-    push_api_key: "${OFFLINE_PUSH_API_KEY}"
-    push_enabled: true
-    push_types:
-      - chat
-      - groupchat
-    push_retry: 2
-    push_async: true
+  ## 自定义模块 mod_message_filter / mod_offline_push 由官方 .ejabberd-modules
+  ## 机制加载其独立 conf/*.yml。不要在主配置重复声明，否则 ejabberd
+  ## 会报 Duplicated option。
 
 ## ============================================================================
 ## 集群健康检查配置
