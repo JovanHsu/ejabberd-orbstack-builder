@@ -92,3 +92,9 @@ See `local/VERIFY.md` for the full verification contract. The verifier proves ra
 
 - `mod_message_filter`: pass / rewrite / reject
 - `mod_offline_push`: offline push callback
+
+See `local/HORIZONTAL_SCALE_TEST.md` for the local horizontal scaling verification record:
+
+- independent replicas can start and authenticate, but do not deliver online messages across replicas
+- ejabberd cluster replicas can deliver cross-instance online messages
+- SAE horizontal scaling requires stable Erlang node names, shared cookie, open distribution ports, and automatic `join_cluster`
