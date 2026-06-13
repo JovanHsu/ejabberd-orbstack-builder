@@ -14,6 +14,8 @@ COPY --chown=9000:9000 bin/sae-entrypoint.sh /opt/ejabberd/bin/sae-entrypoint.sh
 RUN chmod +x /opt/ejabberd/bin/sae-entrypoint.sh \
     && chmod -R u+rwX,go+rX /opt/ejabberd/conf /opt/ejabberd/.ejabberd-modules
 
-USER 9000
+# Keep the named user from the official image. Using numeric USER 9000 makes
+# Erlang fail at boot with kernel/user_drv `nouser` in this image.
+USER ejabberd
 ENTRYPOINT ["/opt/ejabberd/bin/sae-entrypoint.sh"]
 CMD ["foreground"]
