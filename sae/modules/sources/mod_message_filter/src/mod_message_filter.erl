@@ -114,9 +114,7 @@ do_filter(Host, Packet, C2SState, From, To) ->
         {ok, {reject, ReasonCode, ReasonMessage}} ->
             ?WARNING_MSG("消息被拦截 from=~s to=~s code=~s",
                          [jid:encode(From), jid:encode(To), ReasonCode]),
-            send_rejection_notice(From, To, ReasonCode, ReasonMessage,
-                                  Packet#message.id),
-            {stop, drop};
+            {rejection_error_stanza(Packet, From, To, ReasonCode, ReasonMessage), C2SState};
 
         {error, Error} ->
             handle_api_error(Host, Error, Packet, C2SState, From, To)
@@ -132,11 +130,10 @@ handle_api_error(Host, Error, Packet, C2SState, From, To) ->
         false ->
             ?WARNING_MSG("审核 API 异常(拦截) from=~s to=~s reason=~p",
                          [jid:encode(From), jid:encode(To), Error]),
-            send_rejection_notice(From, To,
-                                  <<"SERVICE_BUSY">>,
-                                  <<"审核服务暂不可用，请稍后重试">>,
-                                  Packet#message.id),
-            {stop, drop}
+            {rejection_error_stanza(Packet, From, To,
+                                    <<"SERVICE_BUSY">>,
+                                    <<"审核服务暂不可用，请稍后重试">>),
+             C2SState}
     end.
 
 %%====================================================================
@@ -256,7 +253,7 @@ verify_message(Host, Packet) ->
     ConnTo   = gen_mod:get_module_opt(Host, ?MODULE, api_connect_timeout),
     ApiKey   = gen_mod:get_module_opt(Host, ?MODULE, api_key),
 
-    RequestBody = jiffy:encode(message_to_json(Packet)),
+    RequestBody = misc:json_encode(message_to_json(Packet)),
     Headers     = build_headers(ApiKey),
 
     ?DEBUG("调用审核 API url=~s body_size=~p", [ApiUrl, byte_size(RequestBody)]),
@@ -306,7 +303,7 @@ handle_http_result({error, Reason}) ->
 %% 此时 code = reason，message 也回退到 reason。
 parse_verify_response(ResponseBody) ->
     try
-        Response = jiffy:decode(ResponseBody, [return_maps]),
+        Response = misc:json_decode(ResponseBody),
         case maps:get(<<"pass">>, Response, undefined) of
             true ->
                 case maps:get(<<"message">>, Response, <<>>) of
@@ -361,28 +358,23 @@ default_message(_)                           -> <<"内容违规">>.
 %% XMPP 错误回执
 %%====================================================================
 
-%% @doc 发送标准的 XMPP 错误回执给发送者
-send_rejection_notice(From, To, ReasonCode, ReasonMessage, MessageId) ->
+%% @doc 构造标准的 XMPP 错误回执。user_send_packet 是 fold hook，不能返回
+%% {stop, drop}；返回 error stanza 才能让 c2s 正常发送错误且不崩溃。
+rejection_error_stanza(Packet, From, To, ReasonCode, ReasonMessage) ->
     {ErrorType, ErrorCondition} = classify_rejection_reason(ReasonCode),
     ErrorText = iolist_to_binary([<<"消息未通过内容审核：">>, ReasonMessage]),
-
-    ErrorStanza = #message{
+    Packet#message{
         from = To,
         to   = From,
-        id   = MessageId,
         type = error,
         sub_els = [
             #stanza_error{
                 type = ErrorType,
                 reason = ErrorCondition,
-                text = #text{lang = <<"zh">>, data = ErrorText}
+                text = [#text{lang = <<"zh">>, data = ErrorText}]
             }
         ]
-    },
-    ejabberd_router:route(ErrorStanza),
-    ?DEBUG("已发送错误回执 to=~s id=~p code=~s",
-           [jid:encode(From), MessageId, ReasonCode]),
-    ok.
+    }.
 
 %% @doc 根据拒绝原因代码分类错误类型和条件
 %% 返回 {ErrorType, ErrorCondition}

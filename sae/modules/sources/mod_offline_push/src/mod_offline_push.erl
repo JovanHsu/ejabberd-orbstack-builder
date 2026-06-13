@@ -28,7 +28,7 @@
          terminate/2, code_change/3]).
 
 %% Hook handlers
--export([push_offline_message/4]).
+-export([push_offline_message/1]).
 
 -include("logger.hrl").
 -include("xmpp.hrl").
@@ -121,11 +121,12 @@ mod_opt_type(dedup_max_count) ->      econf:pos_int().
 %% Hook handlers
 %%====================================================================
 
-%% @doc offline_message_hook 是 run_fold，必须透传 Acc。
-%% 上游若返回 {stop, _}，跳过推送；否则原样返回 Acc，不影响后续 hook 链。
-push_offline_message({stop, _} = Acc, _From, _To, _Packet) ->
+%% @doc offline_message_hook 是 run_fold，当前 ejabberd 26 以单参数
+%% Acc 形式调用第三方 hook。Acc 通常为 {offlined, Packet}；兼容旧的
+%% {stop, _} 中止信号并原样透传。
+push_offline_message({stop, _} = Acc) ->
     Acc;
-push_offline_message(Acc, From, To, Packet) ->
+push_offline_message({offlined, #message{from = From, to = To} = Packet} = Acc) ->
     try
         try_push(From, To, Packet)
     catch
@@ -133,6 +134,8 @@ push_offline_message(Acc, From, To, Packet) ->
             ?ERROR_MSG("处理离线消息推送异常 ~p:~p~n~p",
                        [Class, Reason, Stack])
     end,
+    Acc;
+push_offline_message(Acc) ->
     Acc.
 
 try_push(From, To, Packet) ->
@@ -419,7 +422,7 @@ push_with_retry(Url, PushData, Key, Timeout, ConnTo, MaxRetry, Attempt) ->
     end.
 
 call_push_api(PushUrl, PushData, ApiKey, Timeout, ConnTo) ->
-    RequestBody = jiffy:encode(PushData),
+    RequestBody = misc:json_encode(PushData),
     Headers = build_headers(ApiKey),
     try
         Result = httpc:request(
@@ -455,7 +458,7 @@ handle_http_result({error, Reason}) ->
 
 parse_push_response(ResponseBody) ->
     try
-        Response = jiffy:decode(ResponseBody, [return_maps]),
+        Response = misc:json_decode(ResponseBody),
         case maps:get(<<"success">>, Response, undefined) of
             true ->
                 {ok, success};

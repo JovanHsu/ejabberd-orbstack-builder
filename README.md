@@ -63,3 +63,27 @@ Runtime env expected in SAE:
 - `EJABBERD_LOG_LEVEL`
 
 Do not commit secrets, database files, logs, or certificates.
+
+## Local stack with PostgreSQL and Redis
+
+Local compose stack:
+
+```bash
+cd /Users/xujian/workspace/ejabberd-orbstack-builder
+cp local/.env.local.example local/.env.local
+
+docker compose --env-file local/.env.local -f docker-compose.local.yml up -d
+python3 scripts/verify_local_stack.py
+```
+
+The local stack uses:
+
+- `ejabberd-local-stack`
+- `ejabberd-local-postgres`
+- `ejabberd-local-redis`
+- domain `xmpp.narsk.dpdns.org`
+
+See `local/VERIFY.md` for the full verification contract. The verifier proves raw XMPP communication and both custom modules:
+
+- `mod_message_filter`: pass / rewrite / reject
+- `mod_offline_push`: offline push callback

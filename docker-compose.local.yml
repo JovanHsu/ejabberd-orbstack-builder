@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ejabberd-local-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ejabberd}
+      POSTGRES_USER: ${POSTGRES_USER:-ejabberd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ejabberd_local_password}
+      TZ: Asia/Shanghai
+    ports:
+      - "15432:5432"
+    volumes:
+      - ejabberd-local-postgres-data:/var/lib/postgresql/data
+      - ./local/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ejabberd-local-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_local_password}"]
+    ports:
+      - "16379:6379"
+    volumes:
+      - ejabberd-local-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD:-redis_local_password} ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_local_password}
+
+  ejabberd:
+    image: registry.pyramidtip.com/library/ejabberd:local-verify-json
+    container_name: ejabberd-local-stack
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./local/.env.local
+    environment:
+      # Force local service discovery even if the shell has SAE env vars exported.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      XMPP_DOMAIN: xmpp.narsk.dpdns.org
+    ports:
+      # Use 16xxx host ports to avoid collisions with the standalone local containers.
+      - "16222:5222"   # XMPP client
+      - "16269:5269"   # XMPP server-to-server
+      - "16280:5280"   # HTTP admin/API/BOSH/WebSocket
+      - "16443:5443"   # HTTPS admin/API/BOSH/WebSocket
+    healthcheck:
+      test: ["CMD", "ejabberdctl", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  ejabberd-local-postgres-data:
+  ejabberd-local-redis-data:
