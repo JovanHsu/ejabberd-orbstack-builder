@@ -19,11 +19,32 @@ for name in $required; do
   fi
 done
 
+escape_sed_replacement() {
+  # Escape characters that are special in the replacement side of sed s|||.
+  printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+}
+
+replace_var() {
+  file="$1"
+  name="$2"
+  eval "value=\${$name:-}"
+  escaped=$(escape_sed_replacement "$value")
+  sed -i "s|\${$name}|$escaped|g" "$file"
+}
+
 render() {
   src="$1"
   dst="$2"
   if [ -f "$src" ]; then
-    envsubst '${XMPP_DOMAIN} ${EJABBERD_LOG_LEVEL} ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${REDIS_HOST} ${REDIS_PORT} ${REDIS_PASSWORD} ${MESSAGE_FILTER_API_URL} ${MESSAGE_FILTER_API_KEY} ${OFFLINE_PUSH_URL} ${OFFLINE_PUSH_API_KEY}' < "$src" > "$dst"
+    cp "$src" "$dst"
+    for name in \
+      XMPP_DOMAIN EJABBERD_LOG_LEVEL \
+      POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
+      REDIS_HOST REDIS_PORT REDIS_PASSWORD \
+      MESSAGE_FILTER_API_URL MESSAGE_FILTER_API_KEY \
+      OFFLINE_PUSH_URL OFFLINE_PUSH_API_KEY; do
+      replace_var "$dst" "$name"
+    done
   fi
 }
 

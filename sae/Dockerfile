@@ -5,7 +5,6 @@ LABEL org.opencontainers.image.description="ejabberd for Aliyun SAE: xmpp.pyrami
 LABEL org.opencontainers.image.source="https://github.com/JovanHsu/ejabberd-orbstack-builder"
 
 USER root
-RUN apk add --no-cache gettext
 
 COPY --chown=9000:9000 conf/ejabberd.yml.template /opt/ejabberd/conf/ejabberd.yml.template
 COPY --chown=9000:9000 modules/ /opt/ejabberd/.ejabberd-modules/
