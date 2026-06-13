@@ -1,11 +1,17 @@
 # ejabberd-orbstack-builder
 
-Builds a multi-arch ejabberd image for OrbStack / Apple Silicon.
+Builds ejabberd images in GitHub Actions so local Mac/OrbStack does not need to pull slow base layers.
 
-Base image: `ghcr.io/processone/ejabberd:latest`
-Output image: `ghcr.io/jovanhsu/ejabberd-orbstack:latest`
+## Images
 
-Run locally:
+### OrbStack / Apple Silicon image
+
+- Context: repository root
+- Workflow: `.github/workflows/build.yml`
+- Output: `ghcr.io/jovanhsu/ejabberd-orbstack:latest`
+- Platforms: `linux/amd64`, `linux/arm64`
+
+Local run:
 
 ```bash
 docker pull ghcr.io/jovanhsu/ejabberd-orbstack:latest
@@ -16,3 +22,44 @@ docker run -d --name ejabberd \
   -p 5443:5443 \
   ghcr.io/jovanhsu/ejabberd-orbstack:latest
 ```
+
+### Aliyun SAE image
+
+- Context: `sae/`
+- Workflow: `.github/workflows/build-sae.yml`
+- Output: `registry.pyramidtip.com/ejabberd:latest`
+- Platform: `linux/amd64`
+- Domain: `xmpp.pyramidtip.com`
+
+The SAE image bundles:
+
+- `sae/conf/ejabberd.yml.template`
+- official `.ejabberd-modules` custom modules under `sae/modules/`
+- `sae/bin/sae-entrypoint.sh`, which renders runtime env vars into ejabberd config before startup
+
+Required GitHub secrets for pushing SAE image:
+
+- `PYRAMIDTIP_REGISTRY_USERNAME`
+- `PYRAMIDTIP_REGISTRY_PASSWORD`
+
+Trigger manually:
+
+```bash
+gh workflow run build-sae.yml -f image_tag=latest
+```
+
+Runtime env expected in SAE:
+
+- `XMPP_DOMAIN=xmpp.pyramidtip.com`
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `MESSAGE_FILTER_API_URL`
+- `MESSAGE_FILTER_API_KEY`
+- `OFFLINE_PUSH_URL`
+- `OFFLINE_PUSH_API_KEY`
+- `EJABBERD_LOG_LEVEL`
+
+Do not commit secrets, database files, logs, or certificates.

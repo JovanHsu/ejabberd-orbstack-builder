@@ -1,0 +1,11 @@
+modules:
+  mod_offline_push:
+    push_url: "https://backend.pyramidtip.com/notify"
+    push_timeout: 5000
+    push_api_key: ""
+    push_enabled: true
+    push_types:
+      - chat
+      - groupchat
+    push_retry: 2
+    push_async: true

@@ -1,0 +1,11 @@
+modules:
+  mod_offline_push:
+    push_url: "${OFFLINE_PUSH_URL}"
+    push_timeout: 5000
+    push_api_key: "${OFFLINE_PUSH_API_KEY}"
+    push_enabled: true
+    push_types:
+      - chat
+      - groupchat
+    push_retry: 2
+    push_async: true

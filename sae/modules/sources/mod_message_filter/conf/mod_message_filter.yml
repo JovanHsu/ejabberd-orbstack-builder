@@ -1,0 +1,9 @@
+modules:
+  mod_message_filter:
+    api_url: "https://backend.pyramidtip.com/verify"
+    api_timeout: 5000
+    api_key: ""
+    filter_groupchat: false
+    filter_types:
+      - chat
+      - normal

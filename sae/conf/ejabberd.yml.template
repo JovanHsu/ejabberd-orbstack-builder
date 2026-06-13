@@ -1,0 +1,508 @@
+###
+### ejabberd 配置 - 支持横向扩展版本
+### 适用于 Kubernetes/SAE 等容器化环境
+###
+
+hosts:
+  - "${XMPP_DOMAIN}"
+
+## ============================================================================
+## 日志配置
+## ============================================================================
+loglevel: ${EJABBERD_LOG_LEVEL}
+log_rotate_size: 104857600  # 100MB
+log_rotate_count: 10
+log_burst_limit_count: 1000
+log_burst_limit_window_time: 1
+hide_sensitive_log_data: true
+
+## ============================================================================
+## 性能优化配置
+## ============================================================================
+max_fsm_queue: 10000
+queue_type: ram
+queue_dir: "/opt/ejabberd/database/queue"
+negotiation_timeout: 30
+registration_timeout: 600
+
+## OOM 保护
+oom_killer: true
+oom_watermark: 80
+oom_queue: 10000
+
+## WebSocket 配置
+websocket_ping_interval: 60
+websocket_timeout: 300
+
+## 允许多连接
+allow_multiple_connections: true
+
+## ============================================================================
+## 数据库配置 - PostgreSQL（外部服务，支持集群共享）
+## ============================================================================
+default_db: sql
+sql_type: pgsql
+sql_server: "${POSTGRES_HOST}"
+sql_database: "${POSTGRES_DB}"
+sql_username: "${POSTGRES_USER}"
+sql_password: "${POSTGRES_PASSWORD}"
+sql_port: ${POSTGRES_PORT}
+sql_pool_size: 10
+
+## 自动更新 SQL schema（解决版本兼容问题）
+update_sql_schema: true
+new_sql_schema: true
+sql_keepalive_interval: 60
+sql_start_interval: 30
+sql_query_timeout: 60
+sql_connect_timeout: 5
+
+## 使用新的多主机 SQL schema（ejabberd 25.x）
+## 注意：sql_schema_multihost 选项在某些版本中不可用，已注释
+# sql_schema_multihost: true
+
+## ============================================================================
+## Redis 配置（外部服务，支持集群共享）
+## ============================================================================
+redis_server: "${REDIS_HOST}"
+redis_port: ${REDIS_PORT}
+redis_password: "${REDIS_PASSWORD}"
+redis_db: 0
+redis_pool_size: 10
+redis_connect_timeout: 5
+redis_queue_type: ram
+
+## 关键：使用 Redis 作为分布式存储
+## 这确保所有节点共享相同的会话和路由信息
+## Single-replica SAE deployment keeps RAM DB local.
+# default_ram_db: redis
+# router_db_type: redis
+# sm_db_type: redis
+
+## ============================================================================
+## 缓存配置
+## ============================================================================
+use_cache: true
+cache_missed: true
+
+## 认证缓存
+auth_use_cache: true
+auth_cache_size: 100000
+auth_cache_life_time: 7200
+auth_cache_missed: true
+
+## 路由缓存
+router_use_cache: true
+router_cache_size: 100000
+router_cache_life_time: 7200
+router_cache_missed: true
+
+## 会话管理缓存
+sm_use_cache: true
+sm_cache_size: 100000
+sm_cache_life_time: 7200
+sm_cache_missed: true
+
+## ============================================================================
+## Erlang 集群配置（关键：支持横向扩展）
+## ============================================================================
+
+## 集群节点列表（动态发现）
+## 在 Kubernetes/SAE 环境中，通过环境变量或服务发现自动填充
+## 示例：ejabberd@pod-1,ejabberd@pod-2,ejabberd@pod-3
+cluster_nodes: []  # 留空，使用自动发现
+
+## 节点类型
+## - visible: 完全连接的节点（默认）
+## - hidden: 隐藏节点（不参与全局名称注册）
+## 注意：node_type 选项在某些版本中不可用，已注释
+# node_type: visible
+
+## 集群自动发现配置
+## 方式 1: Kubernetes 服务发现（推荐）
+## 需要配置 KUBERNETES_NAMESPACE 和 KUBERNETES_SERVICE_NAME 环境变量
+# cluster_backend: kubernetes
+
+## 方式 2: DNS 服务发现
+## 需要配置 CLUSTER_DNS_NAME 环境变量
+# cluster_backend: dns
+
+## 方式 3: etcd 服务发现
+## 需要配置 ETCD_ENDPOINTS 环境变量
+# cluster_backend: etcd
+
+## 集群节点超时
+## 注意：cluster_node_timeout 选项在某些版本中不可用，已注释
+# cluster_node_timeout: 60
+
+## ============================================================================
+## 分布式会话管理（关键：支持横向扩展）
+## ============================================================================
+
+## 会话后端：使用 Redis 实现分布式会话
+## 这确保用户会话在所有节点间共享
+## 注意：sm_backend 选项在某些版本中不可用，已注释
+# sm_backend: redis
+
+## 会话超时
+## 注意：sm_timeout 选项在某些版本中不可用，已注释
+# sm_timeout: 3600  # 1 小时
+
+## 会话清理间隔
+## 注意：sm_cleanup_interval 选项在某些版本中不可用，已注释
+# sm_cleanup_interval: 600  # 10 分钟
+
+## 会话数量限制（每个用户）
+## 注意：max_user_sessions 选项在某些版本中不可用，已注释
+# max_user_sessions: 10
+
+## ============================================================================
+## 分布式路由配置（关键：支持横向扩展）
+## ============================================================================
+
+## 路由后端：使用 Redis 实现分布式路由
+## 这确保消息路由信息在所有节点间共享
+## 注意：router_backend 选项在某些版本中不可用，已注释
+# router_backend: redis
+
+## 路由缓存（已在上面的缓存配置部分定义，此处删除重复项）
+# router_cache_life_time: 7200
+
+## ============================================================================
+## 认证配置 - 多认证方法（SQL + Keycloak JWT）
+## ============================================================================
+auth_method:
+  - sql
+
+## 密码格式
+auth_password_format: scram
+
+## 允许的 SASL 机制
+disable_sasl_mechanisms:
+  - "digest-md5"
+
+## ============================================================================
+## 监听端口配置
+## ============================================================================
+listen:
+  ## C2S - 客户端到服务器连接（非加密）
+  - port: 5222
+    ip: "::"
+    module: ejabberd_c2s
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+
+  ## S2S - 服务器到服务器连接
+  - port: 5269
+    ip: "::"
+    module: ejabberd_s2s_in
+    max_stanza_size: 524288
+    shaper: s2s_shaper
+
+  ## HTTP/WebSocket 服务
+  - port: 5280
+    ip: "::"
+    module: ejabberd_http
+    request_handlers:
+      "/admin": ejabberd_web_admin
+      "/api": mod_http_api
+      "/upload": mod_http_upload
+      "/ws": ejabberd_http_ws
+      "/oauth": ejabberd_oauth
+
+## ============================================================================
+## 访问控制规则
+## ============================================================================
+acl:
+  admin:
+    user:
+      - "admin@${XMPP_DOMAIN}"
+  local:
+    user_regexp: ""
+  loopback:
+    ip:
+      - "127.0.0.0/8"
+      - "::1/128"
+
+access_rules:
+  local:
+    allow: local
+  c2s:
+    deny: blocked
+    allow: all
+  announce:
+    allow: admin
+  configure:
+    allow: admin
+  muc_create:
+    allow: local
+  pubsub_createnode:
+    allow: local
+  trusted_network:
+    allow: loopback
+  register:
+    allow: all
+
+api_permissions:
+  "console commands":
+    from:
+      - ejabberd_ctl
+    who: all
+    what: "*"
+  "admin access":
+    who:
+      access:
+        allow:
+          acl: admin
+      oauth:
+        scope: "ejabberd:admin"
+        access:
+          allow:
+            acl: admin
+    what:
+      - "*"
+      - "!stop"
+      - "!start"
+  "public commands":
+    who:
+      ip: "127.0.0.1/8"
+    what:
+      - status
+      - connected_users_number
+
+## ============================================================================
+## Shaper 配置（流量控制）
+## ============================================================================
+shaper:
+  normal:
+    rate: 3000
+    burst_size: 20000
+  fast:
+    rate: 100000
+    burst_size: 200000
+
+shaper_rules:
+  max_user_sessions: 10
+  max_user_offline_messages:
+    5000: admin
+    1000: all
+  c2s_shaper:
+    none: admin
+    normal: all
+  s2s_shaper: fast
+
+## ============================================================================
+## 模块配置
+## ============================================================================
+modules:
+  ## 离线消息
+  mod_offline:
+    db_type: sql
+    access_max_user_messages: max_user_offline_messages
+    store_empty_body: false
+    use_mam_for_storage: true
+
+  ## 消息归档管理（MAM）
+  mod_mam:
+    db_type: sql
+    assume_mam_usage: true
+    default: always
+    compress_xml: true
+    cache_size: 10000
+    cache_life_time: 3600
+
+  ## 花名册（联系人列表）
+  mod_roster:
+    db_type: sql
+    versioning: true
+    store_current_id: true
+
+  ## 私有 XML 存储
+  mod_private:
+    db_type: sql
+
+  ## vCard
+  mod_vcard:
+    db_type: sql
+    search: true
+
+  ## 最后活动时间
+  mod_last:
+    db_type: sql
+
+  ## 隐私列表
+  mod_privacy:
+    db_type: sql
+
+  ## 阻止命令
+  ## 移除 db_type 选项，因为已废弃（使用全局 default_db 设置）
+  mod_blocking: {}
+
+  ## 服务发现
+  mod_disco:
+    server_info:
+      - modules: all
+        name: "abuse-addresses"
+        urls: ["mailto:abuse@${XMPP_DOMAIN}"]
+
+  ## 版本信息
+  mod_version:
+    show_os: false
+
+  ## 时间
+  mod_time: {}
+
+  ## Ping
+  mod_ping:
+    send_pings: true
+    ping_interval: 60
+    timeout_action: kill
+
+  ## 注册
+  mod_register:
+    access: register
+    registration_watchers:
+      - "admin@${XMPP_DOMAIN}"
+    ## 禁用 CAPTCHA 以避免 "captcha_cmd is not configured" 警告
+    captcha_protected: false
+
+  ## 统计
+  mod_stats: {}
+
+  ## 多用户聊天（MUC）
+  ## 使用 SQL 存储持久化数据，RAM 数据使用 mnesia（mod_muc 不支持 Redis）
+  mod_muc:
+    db_type: sql
+    ram_db_type: mnesia
+    access:
+      - allow
+    access_admin:
+      - allow: admin
+    access_create: muc_create
+    access_persistent: muc_create
+    default_room_options:
+      allow_change_subj: true
+      allow_query_users: true
+      # allow_private_messages: true  # 此选项在 ejabberd 24.06 中不可用
+      allow_visitor_status: true
+      allow_visitor_nickchange: true
+      public: true
+      public_list: true
+      persistent: true
+      mam: true
+      logging: false
+
+  ## MUC 管理
+  mod_muc_admin: {}
+
+  ## Entity Capabilities (mod_pubsub 的依赖)
+  ## 启用 mod_caps 以支持 mod_pubsub
+  mod_caps:
+    db_type: mnesia
+
+  ## Pub-Sub
+  ## 启用 mod_pubsub 以消除 "mod_pubsub is recommended" 警告
+  mod_pubsub:
+    db_type: sql
+    access_createnode: pubsub_createnode
+    plugins:
+      - flat
+      - pep
+    force_node_config:
+      "eu.siacs.conversations.axolotl.*":
+        access_model: open
+      "storage:bookmarks":
+        access_model: whitelist
+
+  ## 用户头像（PEP）
+  mod_vcard_xupdate: {}
+  mod_avatar: {}
+
+  ## 客户端状态指示
+  mod_client_state:
+    queue_chat_states: true
+    queue_presence: false
+
+  ## Stream 管理
+  mod_stream_mgmt:
+    resend_on_timeout: if_offline
+    resume_timeout: 600
+    max_resume_timeout: 3600
+    max_ack_queue: 5000
+
+  ## HTTP API
+  mod_http_api: {}
+
+  ## 文件上传（使用 OSS）
+  mod_http_upload:
+    put_url: "https://${XMPP_DOMAIN}:5443/upload"
+    get_url: "https://${XMPP_DOMAIN}:5443/upload"
+    docroot: "/opt/ejabberd/upload"
+    max_size: 104857600  # 100 MB
+    thumbnail: false
+    file_mode: "0644"
+    dir_mode: "0755"
+
+  ## 消息过滤模块（自定义）
+  mod_message_filter:
+    api_url: "${MESSAGE_FILTER_API_URL}"
+    api_timeout: 5000
+    api_key: "${MESSAGE_FILTER_API_KEY}"
+    filter_groupchat: false
+    filter_types:
+      - chat
+      - normal
+
+  ## 离线消息推送模块（自定义）
+  mod_offline_push:
+    push_url: "${OFFLINE_PUSH_URL}"
+    push_timeout: 5000
+    push_api_key: "${OFFLINE_PUSH_API_KEY}"
+    push_enabled: true
+    push_types:
+      - chat
+      - groupchat
+    push_retry: 2
+    push_async: true
+
+## ============================================================================
+## 集群健康检查配置
+## ============================================================================
+
+## 启用集群健康检查
+## 定期检查集群节点状态
+## 注意：cluster_health_check 选项在某些版本中不可用，已注释
+# cluster_health_check: true
+# cluster_health_check_interval: 60  # 每 60 秒检查一次
+
+## ============================================================================
+## 分布式锁配置（防止竞态条件）
+## ============================================================================
+
+## 使用 Redis 实现分布式锁
+## 确保在集群环境中的操作原子性
+## 注意：lock_backend 选项在某些版本中不可用，已注释
+# lock_backend: redis
+# lock_timeout: 30
+
+## ============================================================================
+## 监控和指标
+## ============================================================================
+
+## 启用 Prometheus 指标导出
+## 可以通过 /metrics 端点访问
+# mod_prometheus: {}
+
+## ============================================================================
+## 注意事项
+## ============================================================================
+##
+## 1. 所有节点必须使用相同的 ERLANG_COOKIE
+## 2. 所有节点必须能够相互通信（网络连通性）
+## 3. 所有节点必须使用相同的配置文件
+## 4. 所有节点必须连接到相同的 PostgreSQL 和 Redis
+## 5. 文件上传应该使用共享存储（NAS）或对象存储（OSS）
+## 6. 证书可以在负载均衡器层处理，或使用共享存储
+##
+## ============================================================================
